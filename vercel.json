@@ -1,0 +1,7 @@
+{
+  "crons": [{
+    "path": "/api/cron/publish-pins",
+    "schedule": "*/5 * * * *"
+  }]
+}
+
