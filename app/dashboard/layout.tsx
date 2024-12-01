@@ -1,4 +1,5 @@
-import { ProtectedRoute } from '@/components/protected-route'
+import { DashboardSidebar } from "@/components/dashboard/sidebar"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function DashboardLayout({
   children,
@@ -7,11 +8,9 @@ export default function DashboardLayout({
 }) {
   return (
     <ProtectedRoute>
-      <div className="flex">
-        <nav className="w-64 bg-gray-100 min-h-screen p-4">
-          {/* Add dashboard navigation here */}
-        </nav>
-        <main className="flex-1 p-8">{children}</main>
+      <div className="flex h-[calc(100vh-4rem)]">
+        <DashboardSidebar />
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </ProtectedRoute>
   )
