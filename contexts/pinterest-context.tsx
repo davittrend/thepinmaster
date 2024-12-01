@@ -76,14 +76,7 @@ export function PinterestProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function getValidToken(accountId: string): Promise<string> {
-    const account = accounts.find(a => a.id === accountId)
-    if (!account) throw new Error('Account not found')
-
-    if (Date.now() < account.expiresAt) {
-      return account.accessToken
-    }
-
+  async function refreshToken(account: PinterestAccount): Promise<PinterestAccount> {
     try {
       const newTokens = await refreshPinterestToken(account.refreshToken)
       const updatedAccount = {
@@ -94,25 +87,32 @@ export function PinterestProvider({ children }: { children: React.ReactNode }) {
       }
 
       await setDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', account.id), updatedAccount)
-      setAccounts(prevAccounts => prevAccounts.map(a => a.id === account.id ? updatedAccount : a))
-      if (currentAccount?.id === account.id) {
-        setCurrentAccount(updatedAccount)
-      }
-
-      return newTokens.access_token
+      return updatedAccount
     } catch (error) {
       console.error('Failed to refresh token:', error)
-      // Remove the account if refresh token is invalid
       if (error instanceof Error && error.message.includes('invalid_grant')) {
         await deleteDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', account.id))
-        setAccounts(prevAccounts => prevAccounts.filter(a => a.id !== account.id))
-        if (currentAccount?.id === account.id) {
-          setCurrentAccount(null)
-        }
         throw new Error('Pinterest account disconnected due to invalid refresh token')
       }
       throw error
     }
+  }
+
+  async function getValidToken(accountId: string): Promise<string> {
+    const account = accounts.find(a => a.id === accountId)
+    if (!account) throw new Error('Account not found')
+
+    if (Date.now() < account.expiresAt) {
+      return account.accessToken
+    }
+
+    const updatedAccount = await refreshToken(account)
+    setAccounts(prevAccounts => prevAccounts.map(a => a.id === account.id ? updatedAccount : a))
+    if (currentAccount?.id === account.id) {
+      setCurrentAccount(updatedAccount)
+    }
+
+    return updatedAccount.accessToken
   }
 
   return (
