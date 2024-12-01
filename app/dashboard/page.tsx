@@ -1,8 +1,8 @@
-export default function DashboardPage() {
+export default function Dashboard() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-      <p>Welcome to your PinMaster dashboard. Select a section from the sidebar to get started.</p>
+    <div>
+      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
+      <p>Welcome to your PinMaster dashboard.</p>
     </div>
   )
 }

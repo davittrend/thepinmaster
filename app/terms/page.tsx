@@ -1,12 +1,13 @@
-export default function TermsPage() {
+export default function TermsOfUse() {
   return (
     <main className="flex-1">
       <div className="container py-12">
         <div className="max-w-[800px] space-y-6">
-          <h1 className="text-3xl font-bold">Terms of Service</h1>
+          <h1 className="text-3xl font-bold">Terms of Use</h1>
+          <p>Please read our terms of use carefully before using PinMaster.</p>
           <div className="prose prose-gray max-w-none">
             <p>Last updated: November 27, 2023</p>
-            
+
             <h2>1. Terms</h2>
             <p>
               By accessing PinMaster, you agree to be bound by these terms of service and agree that you are responsible for compliance with any applicable local laws.

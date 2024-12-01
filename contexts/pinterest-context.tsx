@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from './auth-context'
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { fetchPinterestBoards, refreshPinterestToken } from '@/lib/pinterest'
 
@@ -10,6 +10,7 @@ interface PinterestAccount {
   id: string
   accessToken: string
   refreshToken: string
+  expiresAt: number
   username: string
   boards?: any[]
 }
@@ -20,6 +21,7 @@ interface PinterestContextType {
   setCurrentAccount: (account: PinterestAccount) => void
   addAccount: (account: PinterestAccount) => Promise<void>
   refreshBoards: () => Promise<void>
+  getValidToken: (accountId: string) => Promise<string>
 }
 
 const PinterestContext = createContext<PinterestContextType | null>(null)
@@ -63,24 +65,53 @@ export function PinterestProvider({ children }: { children: React.ReactNode }) {
     if (!currentAccount) return
 
     try {
-      const boards = await fetchPinterestBoards(currentAccount.accessToken)
+      const token = await getValidToken(currentAccount.id)
+      const boards = await fetchPinterestBoards(token)
       const accountRef = doc(collection(db, 'users', user!.uid, 'pinterest_accounts'), currentAccount.id)
       await setDoc(accountRef, { ...currentAccount, boards: boards.items }, { merge: true })
       await loadAccounts()
     } catch (error) {
-      if (error instanceof Error && error.message.includes('401')) {
-        // Token expired, try to refresh
-        const newTokens = await refreshPinterestToken(currentAccount.refreshToken)
-        const updatedAccount = { ...currentAccount, accessToken: newTokens.access_token, refreshToken: newTokens.refresh_token }
-        await setDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', currentAccount.id), updatedAccount)
-        setCurrentAccount(updatedAccount)
-        // Retry fetching boards with new token
-        const boards = await fetchPinterestBoards(newTokens.access_token)
-        await setDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', currentAccount.id), { ...updatedAccount, boards: boards.items }, { merge: true })
-        await loadAccounts()
-      } else {
-        throw error
+      console.error('Failed to refresh boards:', error)
+      throw error
+    }
+  }
+
+  async function getValidToken(accountId: string): Promise<string> {
+    const account = accounts.find(a => a.id === accountId)
+    if (!account) throw new Error('Account not found')
+
+    if (Date.now() < account.expiresAt) {
+      return account.accessToken
+    }
+
+    try {
+      const newTokens = await refreshPinterestToken(account.refreshToken)
+      const updatedAccount = {
+        ...account,
+        accessToken: newTokens.access_token,
+        refreshToken: newTokens.refresh_token,
+        expiresAt: Date.now() + newTokens.expires_in * 1000
       }
+
+      await setDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', account.id), updatedAccount)
+      setAccounts(prevAccounts => prevAccounts.map(a => a.id === account.id ? updatedAccount : a))
+      if (currentAccount?.id === account.id) {
+        setCurrentAccount(updatedAccount)
+      }
+
+      return newTokens.access_token
+    } catch (error) {
+      console.error('Failed to refresh token:', error)
+      // Remove the account if refresh token is invalid
+      if (error instanceof Error && error.message.includes('invalid_grant')) {
+        await deleteDoc(doc(db, 'users', user!.uid, 'pinterest_accounts', account.id))
+        setAccounts(prevAccounts => prevAccounts.filter(a => a.id !== account.id))
+        if (currentAccount?.id === account.id) {
+          setCurrentAccount(null)
+        }
+        throw new Error('Pinterest account disconnected due to invalid refresh token')
+      }
+      throw error
     }
   }
 
@@ -92,6 +123,7 @@ export function PinterestProvider({ children }: { children: React.ReactNode }) {
         setCurrentAccount,
         addAccount,
         refreshBoards,
+        getValidToken,
       }}
     >
       {children}

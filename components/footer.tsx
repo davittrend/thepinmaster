@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 
 export function Footer() {
   return (
@@ -11,13 +11,13 @@ export function Footer() {
         </div>
         <div className="flex gap-4">
           <Link
-            to="/terms"
+            href="/terms"
             className="text-sm text-muted-foreground underline underline-offset-4"
           >
             Terms
           </Link>
           <Link
-            to="/privacy"
+            href="/privacy"
             className="text-sm text-muted-foreground underline underline-offset-4"
           >
             Privacy

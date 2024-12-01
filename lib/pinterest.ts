@@ -1,17 +1,16 @@
 const PINTEREST_API_URL = 'https://api-sandbox.pinterest.com/v5'
-const PINTEREST_AUTH_URL = 'https://www.pinterest.com/oauth'
-const CLIENT_ID = '1507772'
-const CLIENT_SECRET = '12e86e7dd050a39888c5e753908e80fae94f7367'
-const REDIRECT_URI = 'https://pinorganizer.netlify.app/callback'
-const SCOPES = ['boards:read', 'pins:read', 'pins:write']
+const PINTEREST_AUTH_URL = 'https://api-sandbox.pinterest.com/oauth'
+const CLIENT_ID = process.env.NEXT_PUBLIC_PINTEREST_CLIENT_ID
+const CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET
+const REDIRECT_URI = process.env.NEXT_PUBLIC_PINTEREST_REDIRECT_URI
 
-export async function getAuthUrl() {
+export async function getPinterestAuthUrl() {
   const url = new URL(`${PINTEREST_AUTH_URL}/authorize`)
-  url.searchParams.append('client_id', CLIENT_ID)
-  url.searchParams.append('redirect_uri', REDIRECT_URI)
+  url.searchParams.append('client_id', CLIENT_ID!)
+  url.searchParams.append('redirect_uri', REDIRECT_URI!)
   url.searchParams.append('response_type', 'code')
-  url.searchParams.append('scope', SCOPES.join(','))
-  
+  url.searchParams.append('scope', 'read_users,read_boards,write_pins')
+
   return url.toString()
 }
 
@@ -24,9 +23,9 @@ export async function exchangeCodeForToken(code: string) {
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID!,
+      client_secret: CLIENT_SECRET!,
+      redirect_uri: REDIRECT_URI!,
     }),
   })
 
@@ -37,7 +36,28 @@ export async function exchangeCodeForToken(code: string) {
   return response.json()
 }
 
-export async function getBoards(accessToken: string) {
+export async function refreshPinterestToken(refreshToken: string) {
+  const response = await fetch(`${PINTEREST_AUTH_URL}/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: CLIENT_ID!,
+      client_secret: CLIENT_SECRET!,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to refresh token')
+  }
+
+  return response.json()
+}
+
+export async function fetchPinterestBoards(accessToken: string) {
   const response = await fetch(`${PINTEREST_API_URL}/boards`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -51,16 +71,11 @@ export async function getBoards(accessToken: string) {
   return response.json()
 }
 
-export async function createPin(accessToken: string, boardId: string, pin: {
-  title: string
-  description: string
-  link: string
-  imageUrl: string
-}) {
+export async function createPin(accessToken: string, boardId: string, pin: any) {
   const response = await fetch(`${PINTEREST_API_URL}/pins`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -76,7 +91,7 @@ export async function createPin(accessToken: string, boardId: string, pin: {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to create pin')
+    throw new Error(`Failed to create pin: ${response.statusText}`)
   }
 
   return response.json()

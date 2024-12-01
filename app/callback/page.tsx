@@ -2,14 +2,14 @@
 
 import { useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useAccounts } from '@/contexts/accounts-context'
+import { usePinterest } from '@/contexts/pinterest-context'
 import { exchangeCodeForToken } from '@/lib/pinterest'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function CallbackPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { addAccount } = useAccounts()
+  const { addAccount } = usePinterest()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -30,6 +30,8 @@ export default function CallbackPage() {
         await addAccount({
           id: tokenData.user_id,
           accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          expiresAt: Date.now() + tokenData.expires_in * 1000,
           username: tokenData.username,
         })
 

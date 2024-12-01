@@ -2,9 +2,12 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 
-admin.initializeApp();
+admin.initializeApp({
+  credential: admin.credential.applicationDefault()
+});
 
 const db = admin.firestore();
+const PINTEREST_API_URL = 'https://api-sandbox.pinterest.com/v5';
 
 export const publishScheduledPins = functions.pubsub
   .schedule('every 5 minutes')
@@ -14,33 +17,41 @@ export const publishScheduledPins = functions.pubsub
     const scheduledPinsSnapshot = await db
       .collectionGroup('scheduled_pins')
       .where('scheduledTime', '<=', now)
+      .where('status', '==', 'scheduled')
       .get();
 
     const batch = db.batch();
+    let publishedCount = 0;
 
     for (const doc of scheduledPinsSnapshot.docs) {
       const pin = doc.data();
       const userDoc = await db.collection('users').doc(pin.userId).get();
-      const user = userDoc.data();
+      const userData = userDoc.data();
 
-      if (user && user.pinterestAccessToken) {
+      if (userData && userData.pinterestAccounts && userData.pinterestAccounts[pin.accountId]) {
+        const account = userData.pinterestAccounts[pin.accountId];
         try {
-          await createPin(user.pinterestAccessToken, pin);
-          batch.delete(doc.ref);
+          await createPin(account.accessToken, pin);
+          batch.update(doc.ref, { status: 'published', publishedAt: now });
+          publishedCount++;
         } catch (error) {
           console.error(`Failed to publish pin ${doc.id}:`, error);
-          // If the error is due to an expired token, you might want to handle token refresh here
+          if (error.message.includes('token')) {
+            // Handle token refresh here
+            // For now, we'll just mark it as failed
+            batch.update(doc.ref, { status: 'failed', error: error.message });
+          }
         }
       }
     }
 
     await batch.commit();
 
-    console.log(`Processed ${scheduledPinsSnapshot.size} scheduled pins.`);
+    console.log(`Published ${publishedCount} pins.`);
   });
 
 async function createPin(accessToken: string, pin: any) {
-  const response = await fetch('https://api.pinterest.com/v5/pins', {
+  const response = await fetch(`${PINTEREST_API_URL}/pins`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,

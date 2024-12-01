@@ -1,14 +1,12 @@
-import { Inter } from 'next/font/google'
-import { AuthProvider } from '@/contexts/auth-context'
-import { MainNav } from '@/components/main-nav'
-import { Footer } from '@/components/footer'
 import './globals.css'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'PinMaster',
-  description: 'Pinterest Management Tool',
+  description: 'Smart Pinterest Organizer',
 }
 
 export default function RootLayout({
@@ -18,15 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <div className="flex min-h-screen flex-col">
-            <MainNav />
-            {children}
-            <Footer />
-          </div>
-        </AuthProvider>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }

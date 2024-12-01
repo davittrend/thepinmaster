@@ -1,4 +1,7 @@
-import { Link, useLocation } from "react-router-dom"
+'use client'
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
 const navigation = [
@@ -8,7 +11,7 @@ const navigation = [
 ]
 
 export function DashboardSidebar() {
-  const location = useLocation()
+  const pathname = usePathname()
 
   return (
     <div className="flex h-full w-64 flex-col border-r">
@@ -19,10 +22,10 @@ export function DashboardSidebar() {
         {navigation.map((item) => (
           <Link
             key={item.name}
-            to={item.href}
+            href={item.href}
             className={cn(
               "flex items-center rounded-md px-3 py-2 text-sm font-medium",
-              location.pathname === item.href
+              pathname === item.href
                 ? "bg-primary text-primary-foreground"
                 : "hover:bg-muted"
             )}

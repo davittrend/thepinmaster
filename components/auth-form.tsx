@@ -1,11 +1,13 @@
-"use client"
+'use client'
 
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
+import { useToast } from "@/components/ui/use-toast"
+import Link from "next/link"
+import { useRouter } from 'next/navigation'
 
 interface AuthFormProps {
   mode: "login" | "signup"
@@ -14,23 +16,58 @@ interface AuthFormProps {
 export function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
   const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+    setLoading(true)
     
     try {
       if (mode === "login") {
         await signIn(email, password)
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        })
+        router.push('/')
       } else {
         await signUp(email, password)
+        toast({
+          title: "Account created!",
+          description: "Your account has been created successfully.",
+        })
+        router.push('/')
       }
-      navigate("/dashboard")
     } catch (err) {
-      setError("Failed to authenticate")
+      toast({
+        title: "Authentication error",
+        description: mode === "login" 
+          ? "Invalid email or password" 
+          : "Failed to create account",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle()
+      toast({
+        title: "Welcome!",
+        description: "You have successfully signed in with Google.",
+      })
+      router.push('/')
+    } catch (err) {
+      toast({
+        title: "Authentication error",
+        description: "Failed to sign in with Google",
+        variant: "destructive",
+      })
     }
   }
 
@@ -53,6 +90,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="space-y-2">
@@ -63,11 +101,17 @@ export function AuthForm({ mode }: AuthFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <Button type="submit" className="w-full">
-          {mode === "login" ? "Login" : "Sign Up"}
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? (
+            <>Loading...</>
+          ) : mode === "login" ? (
+            "Login"
+          ) : (
+            "Sign Up"
+          )}
         </Button>
       </form>
       <div className="relative">
@@ -84,7 +128,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         type="button"
         variant="outline"
         className="w-full"
-        onClick={signInWithGoogle}
+        onClick={handleGoogleSignIn}
+        disabled={loading}
       >
         Continue with Google
       </Button>
@@ -92,16 +137,16 @@ export function AuthForm({ mode }: AuthFormProps) {
         {mode === "login" ? (
           <>
             Don't have an account?{" "}
-            <Button variant="link" onClick={() => navigate("/signup")}>
+            <Link href="/signup" className="underline">
               Sign up
-            </Button>
+            </Link>
           </>
         ) : (
           <>
             Already have an account?{" "}
-            <Button variant="link" onClick={() => navigate("/login")}>
+            <Link href="/login" className="underline">
               Login
-            </Button>
+            </Link>
           </>
         )}
       </p>
